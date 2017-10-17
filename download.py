@@ -27,7 +27,7 @@ def process_entry(d):
         "id": d["id"],
         "lxwRatio": float(d["lxwRatio"][0]),
         "polish": d["polish"][0],
-        "price": int(float(d["price"][0][1:].replace(",", "."))),
+        "price": int(d["price"][0][1:].replace(",", "")),
         #"pricePerCarat": float(d["pricePerCarat"][0][1:]),
         "shapeName": d["shapeName"][0],
         "symmetry": d["symmetry"][0],
@@ -42,6 +42,7 @@ def diamonds(params):
     url = 'http://www.bluenile.com/api/public/diamond-search-grid/v2'
     result = []
     iteration = 1
+
     while True:
         response = requests.get(url, params, cookies=landing_page.cookies)
         try:
@@ -50,7 +51,7 @@ def diamonds(params):
             print(response.text)
             return result
         
-        print("iteration: {}, diamonds left: {}".format(iteration, d['countRaw']))
+        print("iteration: {}, min price: {}, diamonds left: {}".format(iteration, params['minPrice'], d['countRaw']))
         iteration += 1
 
         last_page = params['pageSize'] >= d['countRaw']
@@ -63,9 +64,11 @@ def diamonds(params):
             result += it_results
             break
         else:
-            assert min_price < max_price, 'There are over %d diamonds with these characteristics at this price %d.' % (params['pageSize'], min_price)
             result += [x for x in it_results if x['price'] < max_price]
             params['minPrice'] = max_price
+            if min_price > max_price:
+                print('There are over %d diamonds with these characteristics at this price %d.' % (params['pageSize'], min_price))
+                return result
         time.sleep(60)  # api limit
     return result
 
@@ -120,6 +123,8 @@ def parse_arguments():
 
     args = parser.parse_args()
     d = {k:v for k, v in args.__dict__.items() if v is not None}
+    if "minPrice" not in d:
+        d["minPrice"] = 0
     return d
 
 
